@@ -6,7 +6,7 @@ using UnityEngine;
 namespace _02._Scripts.Ball
 {
     [RequireComponent(typeof(Rigidbody), typeof(Collider))]
-    public class CommonBall : MonoBehaviour, IBall, IPoolable
+    public class CommonBall : MonoBehaviour, IPoolable
     {
         [SerializeField] private float launchSpeed;
         

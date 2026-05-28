@@ -19,7 +19,7 @@ namespace _02._Scripts.Core.Systems
             _poolingManager = Manager.Instance.GetManager<PoolingManager>();
         }
 
-        public IBall CreateBall(BallColorType type, Transform spawnPoint)
+        public CommonBall CreateBall(BallColorType type, Transform spawnPoint)
         {
             if (_poolingManager == null)
             {

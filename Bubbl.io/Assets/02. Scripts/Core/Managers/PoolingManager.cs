@@ -39,7 +39,7 @@ namespace _02._Scripts.Core.Managers
             
             for (int i = 0; i < 10; i++)
             {
-                IPoolable poolable = CreateNewPoolable(spawnableObject, transform);
+                SpawnPool(poolName, transform, out IPoolable poolable);
                 if (poolable != null)
                 {
                     spawnedPoolList.Add(poolable);
@@ -48,13 +48,12 @@ namespace _02._Scripts.Core.Managers
             return spawnedPoolList;
         }
         
-        private IPoolable CreateNewPoolable(Object prefab, Transform spawnTrm)
+        private IPoolable CreateNewPoolable(Object prefab)
         {
-            GameObject spawnedPool = Instantiate(prefab, spawnTrm) as GameObject;
+            GameObject spawnedPool = Instantiate(prefab) as GameObject;
             if (spawnedPool == null) 
                 return null;
             
-            spawnedPool.transform.position = spawnTrm.position;
             IPoolable poolable = spawnedPool.GetComponent<IPoolable>();
             if (poolable != null)
             {
@@ -67,37 +66,46 @@ namespace _02._Scripts.Core.Managers
         public bool SpawnPool<T>(string poolName, Transform spawnTrm, out T pooledObject) where T : IPoolable
         {
             pooledObject = default;
-            
-            if(!_pooledObjects.TryGetValue(poolName, out List<IPoolable> poolableList))
-            {
-                Debug.LogWarning($"{poolName} not found.");
+    
+            if (!_pooledObjects.TryGetValue(poolName, out List<IPoolable> poolableList))
                 return false;
-            }
 
-            IPoolable target = poolableList.Find(p => p is Component comp && !comp.gameObject.activeSelf);
+            IPoolable target = null;
+
+            for (int i = 0; i < poolableList.Count; i++)
+            {
+                if (poolableList[i] is Component comp && !comp.gameObject.activeSelf)
+                {
+                    target = poolableList[i];
+                    break;
+                }
+            }
 
             if (target == null)
             {
-                Object prefab = pool.Find(p => p.poolName == poolName).poolObject;
-                target = CreateNewPoolable(prefab, spawnTrm);
-                
-                if (target != null)
+                var data = pool.Find(p => p.poolName == poolName);
+                if (data.poolObject != null)
                 {
-                    poolableList.Add(target);
-                }
-                else
-                {
-                    return false;
+                    target = CreateNewPoolable(data.poolObject);
+                    if (target != null) poolableList.Add(target);
                 }
             }
 
-            if (target is Component component)
+            if (target != null && target is T castedTarget)
             {
-                component.gameObject.SetActive(true);
-            }
+                pooledObject = castedTarget;
+        
+                if (target is Component component)
+                {
+                    component.transform.position = spawnTrm.position;
+                    component.transform.rotation = spawnTrm.rotation;
             
-            pooledObject = (T)target;
-            return true;
+                    component.gameObject.SetActive(true);
+                }
+                return true;
+            }
+    
+            return false;
         }
 
         public void DespawnPool(string poolName, IPoolable poolable)
@@ -109,6 +117,10 @@ namespace _02._Scripts.Core.Managers
                 if (poolable is Component component)
                 {
                     component.gameObject.SetActive(false);
+                    component.transform.parent = transform;
+                    
+                    component.transform.localPosition = Vector3.zero;
+                    component.transform.localRotation = Quaternion.identity;
                 }
                 poolable.Reset();
             }

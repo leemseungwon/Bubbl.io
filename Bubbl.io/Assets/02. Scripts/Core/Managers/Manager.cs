@@ -28,8 +28,8 @@ namespace _02._Scripts.Core.Managers
                     continue;
             
                 _managerList.Add(managers[i]);
-                managers[i].Initialize(this);
             }
+            _managerList.ForEach(manager => manager.Initialize(this));
         }
 
         public void SceneLoad(Scene loadedScene, LoadSceneMode _)

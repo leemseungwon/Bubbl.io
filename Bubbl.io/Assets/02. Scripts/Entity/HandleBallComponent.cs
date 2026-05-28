@@ -35,8 +35,8 @@ namespace _02._Scripts.Entity
         private BallSystem _ballSystem;
         private Entity _owner;
         
-        public IBall CurrentBall { get; private set; }
-        public IBall NextBall { get; private set; }
+        public CommonBall CurrentBall { get; private set; }
+        public CommonBall NextBall { get; private set; }
 
         public void Initialize(Entity entity)
         {
@@ -73,7 +73,7 @@ namespace _02._Scripts.Entity
             NextBall = OutputBall();
         }
         
-        private IBall SpawnBallFromQueue()
+        private CommonBall SpawnBallFromQueue()
         {
             if (_colorDataQueue.Count == 0)
             {
@@ -86,7 +86,7 @@ namespace _02._Scripts.Entity
             return _ballSystem?.CreateBall(nextColor, currentSpawnPoint);
         }
         
-        private void AttachBallToPivot(IBall ball, Transform targetPivot)
+        private void AttachBallToPivot(CommonBall ball, Transform targetPivot)
         {
             if (ball is Component ballComp && targetPivot != null)
             {
@@ -101,7 +101,7 @@ namespace _02._Scripts.Entity
             }
         }
 
-        protected IBall OutputBall()
+        protected CommonBall OutputBall()
         {
             if (_colorDataQueue.Count == 0) 
                 RefillColorQueue();

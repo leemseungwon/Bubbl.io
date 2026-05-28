@@ -23,8 +23,8 @@ namespace _02._Scripts.Core.Systems
                     continue;
             
                 _systemList.Add(managers[i]);
-                managers[i].Initialize(this);
             }
+            _systemList.ForEach(system => system.Initialize(this));
         }
     
         public T GetSystem<T>() where T : class, ISystem
