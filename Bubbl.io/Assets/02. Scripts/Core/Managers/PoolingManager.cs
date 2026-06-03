@@ -39,7 +39,7 @@ namespace _02._Scripts.Core.Managers
             
             for (int i = 0; i < 10; i++)
             {
-                SpawnPool(poolName, transform, out IPoolable poolable);
+                SpawnPool(poolName, out IPoolable poolable);
                 if (poolable != null)
                 {
                     spawnedPoolList.Add(poolable);
@@ -63,7 +63,7 @@ namespace _02._Scripts.Core.Managers
             return poolable;
         }
         
-        public bool SpawnPool<T>(string poolName, Transform spawnTrm, out T pooledObject) where T : IPoolable
+        public bool SpawnPool<T>(string poolName, out T pooledObject) where T : IPoolable
         {
             pooledObject = default;
     
@@ -97,9 +97,6 @@ namespace _02._Scripts.Core.Managers
         
                 if (target is Component component)
                 {
-                    component.transform.position = spawnTrm.position;
-                    component.transform.rotation = spawnTrm.rotation;
-            
                     component.gameObject.SetActive(true);
                 }
                 return true;
@@ -117,10 +114,8 @@ namespace _02._Scripts.Core.Managers
                 if (poolable is Component component)
                 {
                     component.gameObject.SetActive(false);
-                    component.transform.parent = transform;
-                    
-                    component.transform.localPosition = Vector3.zero;
-                    component.transform.localRotation = Quaternion.identity;
+                    component.transform.position = Vector3.zero;
+                    component.transform.rotation = Quaternion.identity;
                 }
                 poolable.Reset();
             }

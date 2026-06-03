@@ -10,124 +10,115 @@ namespace _02._Scripts.Entity
         Red,
         Blue,
         Green,
-        Yellow,
-        Black,
-        White,
-        Purple
+        Pink,
+        Brown,
     }
     
     public class HandleBallComponent : MonoBehaviour, IEntityComponent
     {
-        [Header("7-Bag Settings")]
-        [SerializeField] private List<BallColorType> baseBallBag = new List<BallColorType> 
-        { 
-            BallColorType.Red, BallColorType.Blue, BallColorType.Green, BallColorType.Yellow, BallColorType.Black, 
-            BallColorType.White, BallColorType.Purple
-        };
-
         [Header("Positions")]
-        [SerializeField] private Transform ballSpawnPoint;
-        [SerializeField] private Transform currentSpawnPoint; 
-        [SerializeField] private Transform nextSpawnPoint;
+        [SerializeField] private Transform currentSpawnPoint;
 
+        private List<BallColorType> _baseBallBag = new List<BallColorType> 
+        { 
+            BallColorType.Red, BallColorType.Blue, BallColorType.Green, BallColorType.Pink, BallColorType.Brown
+        };
         private List<BallColorType> _currentBag = new List<BallColorType>();
         private Queue<BallColorType> _colorDataQueue = new Queue<BallColorType>();
         private BallSystem _ballSystem;
+        private Rigidbody _rigidbody;
         private Entity _owner;
+        private bool _canLaunchBall = true;
         
         public CommonBall CurrentBall { get; private set; }
-        public CommonBall NextBall { get; private set; }
 
         public void Initialize(Entity entity)
         {
             _owner = entity;
+            _rigidbody = GetComponent<Rigidbody>();
             _ballSystem = Core.Systems.System.Instance.GetSystem<BallSystem>(); 
         }
         
         public void Start()
         {
             RefillColorQueue();
-            
-            SetupInitialPositions();
-        }
-        
-        private void SetupInitialPositions()
-        {
-            CurrentBall = SpawnBallFromQueue();
-            if(CurrentBall != null)
-                AttachBallToPivot(CurrentBall, currentSpawnPoint);
-            
-            NextBall = SpawnBallFromQueue();
-            if(NextBall != null)
-                AttachBallToPivot(NextBall, nextSpawnPoint);
+            SpawnNextBall();
         }
         
         public void LaunchCurrentBall(Vector2 launchDirection)
         {
-            if (CurrentBall == null) 
+            if (CurrentBall == null || !_canLaunchBall) 
                 return;
             
-            CurrentBall.Launch(launchDirection);
+            _canLaunchBall = false;
+            _owner.OwnGrid.IsAutoLowering = false;
             
-            CurrentBall = NextBall;
-            NextBall = OutputBall();
+            if (CurrentBall is Component ballComp)
+            {
+                ballComp.transform.SetParent(null);
+            }
+
+            CurrentBall.Launch(launchDirection);
+            CurrentBall.OnSnapToGrid += SnapBallComplete;
+        }
+
+        private void SnapBallComplete()
+        {
+            if(CurrentBall != null)
+                CurrentBall.OnSnapToGrid -= SnapBallComplete;
+            
+            _owner.OwnGrid.IsAutoLowering = true;
+            SpawnNextBall();
+            _owner.OwnGrid.IncreaseDifficulty();
+            _canLaunchBall = true;
         }
         
-        private CommonBall SpawnBallFromQueue()
+        private void SpawnNextBall()
         {
-            if (_colorDataQueue.Count == 0)
-            {
-                RefillColorQueue();
-            }
+            if (_ballSystem == null) 
+                return;
 
             BallColorType nextColor = _colorDataQueue.Dequeue();
             RefillColorQueue();
 
-            return _ballSystem?.CreateBall(nextColor, currentSpawnPoint);
+            CurrentBall = _ballSystem.CreateBall(_owner, nextColor);
+            AttachBallToPivot();
         }
         
-        private void AttachBallToPivot(CommonBall ball, Transform targetPivot)
+        private void AttachBallToPivot()
         {
-            if (ball is Component ballComp && targetPivot != null)
+            if (CurrentBall is Component ballComp && currentSpawnPoint != null)
             {
-                ballComp.transform.SetParent(targetPivot, false);
+                ballComp.transform.SetParent(currentSpawnPoint, true);
                 ballComp.transform.localPosition = Vector3.zero;
                 ballComp.transform.localRotation = Quaternion.identity;
 
-                if (ballComp.TryGetComponent<Rigidbody>(out var rb))
+                if (ballComp.TryGetComponent<Rigidbody>(out var ballRb))
                 {
-                    rb.isKinematic = true;
+                    ballRb.isKinematic = true;
+                    ballRb.velocity = Vector3.zero;
+                    ballRb.angularVelocity = Vector3.zero;
                 }
             }
         }
 
-        protected CommonBall OutputBall()
+        private void RefillColorQueue()
         {
-            if (_colorDataQueue.Count == 0) 
-                RefillColorQueue();
-
-            BallColorType nextColor = _colorDataQueue.Dequeue();
-            RefillColorQueue();
-            
-            return _ballSystem.CreateBall(nextColor, ballSpawnPoint);
-        }
-
-        protected virtual void RefillColorQueue()
-        {
-            while (_colorDataQueue.Count < baseBallBag.Count)
+            while (_colorDataQueue.Count < _baseBallBag.Count)
             {
                 if (_currentBag.Count == 0)
                 {
-                    _currentBag = new List<BallColorType>(baseBallBag);
-                    ShuffleBall();
+                    _currentBag = new List<BallColorType>(_baseBallBag);
+                    ShuffleBag();
                 }
+                
                 int lastIndex = _currentBag.Count - 1;
                 _colorDataQueue.Enqueue(_currentBag[lastIndex]);
                 _currentBag.RemoveAt(lastIndex);
             }
         }
 
-        protected virtual void ShuffleBall()
+        private void ShuffleBag()
         {
             int n = _currentBag.Count;
             while (n > 1)

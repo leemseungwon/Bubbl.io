@@ -10,28 +10,36 @@ namespace _02._Scripts.Core.Systems
 {
     public class BallSystem : MonoBehaviour, ISystem
     {
-        [SerializeField] private List<BallMaterialData> ballMaterials = new List<BallMaterialData>();
+        [SerializeField] private List<BallMaterialData> ballMaterials = new List<BallMaterialData>{
+            new BallMaterialData{colorType = BallColorType.Red, material = null},
+            new BallMaterialData{colorType = BallColorType.Blue, material = null},
+            new BallMaterialData{colorType = BallColorType.Green, material = null},
+            new BallMaterialData{colorType = BallColorType.Pink, material = null},
+            new BallMaterialData{colorType = BallColorType.Brown, material = null},
+        };
         
         private PoolingManager _poolingManager;
-
+        
         public void Initialize(System system)
         {
             _poolingManager = Manager.Instance.GetManager<PoolingManager>();
         }
 
-        public CommonBall CreateBall(BallColorType type, Transform spawnPoint)
+        public CommonBall CreateBall(Entity.Entity owner, BallColorType type)
         {
             if (_poolingManager == null)
             {
                 return null;
             }
             
-            if (_poolingManager.SpawnPool("Ball", spawnPoint, out CommonBall spawnedBall))
+            if (_poolingManager.SpawnPool("Ball", out CommonBall spawnedBall))
             {
-                spawnedBall.SetColor(type);
+                spawnedBall.transform.position = Vector3.zero;
+                spawnedBall.SpawnBall(owner, type);
                 return spawnedBall;
             }
             
+            Debug.LogError("🚨 BallSystem: 풀 매니저에서 CommonBall을 꺼내는 데 실패했습니다.");
             return null;
         }
         

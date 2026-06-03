@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using _02._Scripts.Environment;
 using UnityEngine;
 
 namespace _02._Scripts.Entity
 {
     public class Entity : MonoBehaviour
     {
+        [field:SerializeField] public GridBall OwnGrid { get; private set; }
+        
         protected Dictionary<Type, IEntityComponent> Components;
         
         protected virtual void Awake()
@@ -35,6 +38,18 @@ namespace _02._Scripts.Entity
                 return findCompo;
             Debug.LogError($"{typeof(T).ToString()} Compo is Null");
             return default(T);
+        }
+
+        public bool GetCompo<T>(out T compo)
+        {
+            compo = default(T);
+            if (Components.TryGetValue(typeof(T), out IEntityComponent component) 
+                && component is T bindingCompo)
+            {
+                compo = bindingCompo;
+                return true;
+            }
+            return false;
         }
     }
 }

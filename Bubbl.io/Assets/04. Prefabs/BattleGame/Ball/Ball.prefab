@@ -14,9 +14,9 @@ GameObject:
   - component: {fileID: 1929968008568280306}
   - component: {fileID: 3589170259025284959}
   - component: {fileID: 323654919592291277}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Ball
-  m_TagString: Untagged
+  m_TagString: Ball
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -93,7 +93,7 @@ SphereCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6699159577403905600}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 41b1973b2399aa6488e80d4472538e55, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -101,7 +101,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -119,7 +119,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3884ea6bce714fcb9c69f8ea665f2fdb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  launchSpeed: 5
+  launchSpeed: 15
+  maxReflectCount: 3
+  ballRadius: 0.3
 --- !u!54 &323654919592291277
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -128,7 +130,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6699159577403905600}
   serializedVersion: 4
-  m_Mass: 1
+  m_Mass: 10
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
