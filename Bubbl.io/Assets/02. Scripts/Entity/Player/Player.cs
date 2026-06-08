@@ -1,4 +1,5 @@
 
+using _02._Scripts.Ball;
 using UnityEngine;
 
 namespace _02._Scripts.Entity.Player
@@ -10,7 +11,9 @@ namespace _02._Scripts.Entity.Player
         private Vector2 _currentMouseScreenPosition;
         
         private HandleBallComponent _handleBallComponent;
-        private Ball.CommonBall _launchedBallWaitingForSnap = null;
+        private CommonBall _launchedBallWaitingForSnap = null;
+
+        private bool IsEnd { get; set; } = false;
         
         protected override void Awake()
         {
@@ -39,6 +42,9 @@ namespace _02._Scripts.Entity.Player
         
         private void Update()
         {
+            if(IsEnd)
+                return;
+            
             RotateToMouse();
         }
         
@@ -59,12 +65,15 @@ namespace _02._Scripts.Entity.Player
 
         private void Launch()
         {
+            if(IsEnd)
+                return;
+            
             if (_handleBallComponent != null && _handleBallComponent.CurrentBall != null)
             {
+                CommonBall ballToLaunch = _handleBallComponent.CurrentBall;
                 _handleBallComponent.LaunchCurrentBall(transform.up);
-                
-                // 발사한 공을 추적
-                _launchedBallWaitingForSnap = _handleBallComponent.CurrentBall;
+        
+                _launchedBallWaitingForSnap = ballToLaunch;
                 if (_launchedBallWaitingForSnap != null)
                 {
                     _launchedBallWaitingForSnap.OnSnapToGrid += OnLaunchedBallSnapped;
@@ -94,6 +103,13 @@ namespace _02._Scripts.Entity.Player
                 _launchedBallWaitingForSnap = null;
             }
         }
+        
+        public void End(bool isWin)
+        {
+            IsEnd = true;
+            OwnGrid.StopAll();
+        }
+
 
         private void OnDestroy()
         {

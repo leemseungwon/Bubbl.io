@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace _02._Scripts.Ball
 {
-    [RequireComponent(typeof(Rigidbody), typeof(Collider))]
+    [RequireComponent(typeof(Rigidbody))]
     public class CommonBall : MonoBehaviour, IPoolable
     {
         [SerializeField] private float launchSpeed;
@@ -25,7 +25,6 @@ namespace _02._Scripts.Ball
         private BallSystem _ballSystem;
         private MeshRenderer _renderer;
         private Rigidbody _rigidbody;
-        private Collider _collider;
 
         private WaitForSeconds _destroyByFalling;
         private Vector3 _moveDirection;
@@ -49,21 +48,19 @@ namespace _02._Scripts.Ball
             
             _renderer = GetComponent<MeshRenderer>();
             _rigidbody = GetComponent<Rigidbody>();
-            _collider = GetComponent<Collider>();
+            
+            int ownLayer = LayerMask.NameToLayer(BallTag);
             
             _isLaunched = false;
             _rigidbody.isKinematic = true; 
-            _collider.isTrigger = true;
         }
         
         public void SpawnBall(Entity.Entity owner, BallColorType colorType)
         {
             Owner = owner;
-            _collider.enabled = true;
             
             _isLaunched = false;
             _rigidbody.isKinematic = true; 
-            _collider.isTrigger = true;
             _rigidbody.velocity = Vector3.zero;
             _moveDirection = Vector3.zero;
             
@@ -76,73 +73,54 @@ namespace _02._Scripts.Ball
         public void Launch(Vector2 direction)
         {
             MaxReflectCount = maxReflectCount;
-            
-            transform.SetParent(null, false);
+
+            transform.SetParent(null, true);
             transform.rotation = Quaternion.identity;
 
             _rigidbody.isKinematic = true;
 
             _moveDirection = new Vector3(direction.x, direction.y, 0f).normalized;
-            
+    
             _isLaunched = true;
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
-            if (!_isLaunched || IsSnapped) 
-                return;
+            if (!_isLaunched || IsSnapped) return;
 
-            float moveDistance = launchSpeed * Time.deltaTime;
-            Vector3 currentPos = transform.position;
+            float step = launchSpeed * Time.fixedDeltaTime;
+            RaycastHit hit;
 
-            if (Physics.SphereCast(currentPos, ballRadius * 0.95f, _moveDirection, out RaycastHit hit, moveDistance))
+            if (Physics.SphereCast(transform.position, ballRadius * 0.8f, _moveDirection, out hit, step))
             {
-                if (MaxReflectCount <= 0)
+                if (hit.collider.CompareTag("Wall")) 
                 {
-                    DestroyBall();
+                    _moveDirection = Vector3.Reflect(_moveDirection, hit.normal);
+                    _moveDirection.z = 0;
+                }
+                else if (hit.collider.CompareTag("TopWall") || 
+                         (hit.collider.TryGetComponent(out CommonBall ball) && ball.IsSnapped))
+                {
+                    StopAndSnap();
                     return;
                 }
-                
-                if (hit.collider.CompareTag(WallTag))
-                {
-                    MaxReflectCount--;
-                    transform.position = currentPos + (_moveDirection * hit.distance);
-
-                    Vector3 normal = hit.normal;
-                    normal.z = 0f;
-                    _moveDirection = Vector3.Reflect(_moveDirection, normal.normalized).normalized;
-                }
-                else if (hit.collider.CompareTag(BallTag) || hit.collider.CompareTag(TopWallTag))
-                {
-                    Vector3 hitPos = currentPos + (_moveDirection * hit.distance);
-                    Vector3 correctedPos = hitPos + (_moveDirection * (ballRadius * 0.5f));
-
-                    correctedPos.z = Owner.OwnGrid.transform.position.z;
-                    transform.position = correctedPos;
-
-                    StopAndSnap();
-                }
             }
-            else
-            {
-                transform.position += _moveDirection * moveDistance;
-            }
+            transform.position += _moveDirection * step;
         }
 
         private void StopAndSnap()
         {
+            if (IsSnapped) return;
+    
             IsSnapped = true;
             _isLaunched = false;
+            _rigidbody.velocity = Vector3.zero;
 
             if (Owner != null && Owner.OwnGrid != null)
             {
-                Vector3 currentPos = transform.position;
-                currentPos.z = Owner.OwnGrid.transform.position.z;
-                transform.position = currentPos;
-                
                 Owner.OwnGrid.SnapToGrid(this);
             }
-
+            
             OnSnapToGrid?.Invoke();
         }
         
@@ -150,8 +128,6 @@ namespace _02._Scripts.Ball
         {
             IsSnapped = false;
             _isLaunched = false;
-            
-            _collider.enabled = false;
 
             _rigidbody.isKinematic = false;
             _rigidbody.useGravity = true;
@@ -164,8 +140,8 @@ namespace _02._Scripts.Ball
         private IEnumerator DestroyByFalling()
         {
             yield return _destroyByFalling;
-            DestroyBall();
             Owner.OwnGrid.RemoveBall(this);
+            DestroyBall();
         }
         
         public void DestroyBall()
@@ -174,6 +150,7 @@ namespace _02._Scripts.Ball
             transform.localPosition = Vector3.zero;
             _poolingManager.DespawnPool("Ball", this);
             IsSnapped = false;
+            OnSnapToGrid?.Invoke();
         }
 
         public void Reset() 

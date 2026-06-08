@@ -1,7 +1,10 @@
+
+using System.Collections;
 using System.Collections.Generic;
 using _02._Scripts.Ball;
 using _02._Scripts.Core.Systems;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace _02._Scripts.Entity
 {
@@ -16,8 +19,8 @@ namespace _02._Scripts.Entity
     
     public class HandleBallComponent : MonoBehaviour, IEntityComponent
     {
-        [Header("Positions")]
         [SerializeField] private Transform currentSpawnPoint;
+        [SerializeField] private float launchBallTime = 0.5f;
 
         private List<BallColorType> _baseBallBag = new List<BallColorType> 
         { 
@@ -29,7 +32,13 @@ namespace _02._Scripts.Entity
         private Rigidbody _rigidbody;
         private Entity _owner;
         private bool _canLaunchBall = true;
+        private float _currentLaunchTime = 0f;
+        private CommonBall _lastLaunchedBall;
+        private CommonBall _activeLaunchedBall;
+        private float _safetyTimeout = 3.0f; // 3초 동안 스냅 안 되면 강제 초기화
+        private float _launchTimer = 0f;
         
+        public bool IsEnd { get; set; }
         public CommonBall CurrentBall { get; private set; }
 
         public void Initialize(Entity entity)
@@ -44,33 +53,58 @@ namespace _02._Scripts.Entity
             RefillColorQueue();
             SpawnNextBall();
         }
-        
+
+        private void Update()
+        {
+            _currentLaunchTime -= Time.deltaTime;
+            
+            if (!_canLaunchBall && _currentLaunchTime <= 0f)
+            {
+                _launchTimer += Time.deltaTime;
+                if (_launchTimer > _safetyTimeout)
+                {
+                    ForceResetLaunchState();
+                }
+            }
+        }
+
+        private void ForceResetLaunchState()
+        {
+            if (CurrentBall != null) 
+                CurrentBall.OnSnapToGrid -= SnapBallComplete;
+    
+            _owner.OwnGrid.IsAutoLowering = true;
+            _canLaunchBall = true; // 강제 복구
+            _launchTimer = 0f;
+            
+            if (CurrentBall == null) 
+                SpawnNextBall();
+        }
+
         public void LaunchCurrentBall(Vector2 launchDirection)
         {
-            if (CurrentBall == null || !_canLaunchBall) 
-                return;
-            
-            _canLaunchBall = false;
-            _owner.OwnGrid.IsAutoLowering = false;
-            
-            if (CurrentBall is Component ballComp)
-            {
-                ballComp.transform.SetParent(null);
-            }
+            if (IsEnd || CurrentBall == null || !_canLaunchBall) return;
 
-            CurrentBall.Launch(launchDirection);
-            CurrentBall.OnSnapToGrid += SnapBallComplete;
+            _canLaunchBall = false;
+            _owner.OwnGrid.IsAutoLowering = false; // 발사 중 격자 이동 금지
+    
+            _activeLaunchedBall = CurrentBall;
+            CurrentBall = null;
+
+            _activeLaunchedBall.OnSnapToGrid += SnapBallComplete;
+            _activeLaunchedBall.Launch(launchDirection);
         }
 
         private void SnapBallComplete()
         {
-            if(CurrentBall != null)
-                CurrentBall.OnSnapToGrid -= SnapBallComplete;
-            
-            _owner.OwnGrid.IsAutoLowering = true;
+            if (_activeLaunchedBall != null)
+            {
+                _activeLaunchedBall.OnSnapToGrid -= SnapBallComplete;
+                _activeLaunchedBall = null;
+            }
+    
+            ForceResetLaunchState();
             SpawnNextBall();
-            _owner.OwnGrid.IncreaseDifficulty();
-            _canLaunchBall = true;
         }
         
         private void SpawnNextBall()
@@ -127,6 +161,27 @@ namespace _02._Scripts.Entity
                 int k = Random.Range(0, n + 1);
                 (_currentBag[k], _currentBag[n]) = (_currentBag[n], _currentBag[k]);
             }
+        }
+        
+        public void Restart()
+        {
+            StopAllCoroutines();
+    
+            // 이전 발사체 정리
+            if (_activeLaunchedBall != null) { 
+                _activeLaunchedBall.OnSnapToGrid -= SnapBallComplete; 
+                _activeLaunchedBall.DestroyBall(); 
+                _activeLaunchedBall = null; 
+            }
+            if (CurrentBall != null) { CurrentBall.DestroyBall(); CurrentBall = null; }
+
+            // 상태 변수 초기화
+            _canLaunchBall = true;
+            _owner.OwnGrid.IsAutoLowering = true;
+            _launchTimer = 0f;
+            IsEnd = false;
+    
+            SpawnNextBall();
         }
     }
 }

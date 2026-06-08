@@ -10,28 +10,31 @@ namespace _02._Scripts.Environment
 {
     public class GridBall : MonoBehaviour
     {
+        [SerializeField] private User user;
         [SerializeField] private Entity.Entity owner;
-        
+
         [SerializeField] private float ballRadius = 0.5f;
         [SerializeField] private int startLowGridRow = 3;
-        
-        [Header("Auto Lower Settings")]
-        [SerializeField] private float autoLowerInterval = 30f;
+
+        [Header("Auto Lower Settings")] [SerializeField]
+        private float autoLowerInterval = 30f;
+
         private float _timer;
         public bool IsAutoLowering { get; set; } = true;
         public event Action OnLowerGrid;
         public event Action<List<Ball.CommonBall>> OnBallsPopped;
-        
+
         [Header("Debug Settings")]
         [SerializeField] private bool showDebugGrid = true;
-        [SerializeField] private int debugRows = 14; 
+
+        [SerializeField] private int debugRows = 14;
         [SerializeField] private int maxCols = 5;
         [SerializeField] private Color gizmoColor = Color.cyan;
 
         private BallSystem _ballSystem;
         private float _ballDiameter;
         private float _rowHeight;
-        
+
         private Dictionary<Vector2Int, Ball.CommonBall> _gridMatrix = new Dictionary<Vector2Int, Ball.CommonBall>();
         private List<Ball.CommonBall> _snappedBalls = new List<Ball.CommonBall>();
 
@@ -39,24 +42,30 @@ namespace _02._Scripts.Environment
         private Vector3 _absoluteOrigin;
         private int _loweredCount = 0;
 
-        private readonly Vector2Int[] _evenRowNeighbors = {
+        private readonly Vector2Int[] _evenRowNeighbors =
+        {
             new Vector2Int(-1, 0), new Vector2Int(1, 0),
             new Vector2Int(-1, -1), new Vector2Int(0, -1),
             new Vector2Int(-1, 1), new Vector2Int(0, 1)
         };
 
-        private readonly Vector2Int[] _oddRowNeighbors = {
+        private readonly Vector2Int[] _oddRowNeighbors =
+        {
             new Vector2Int(-1, 0), new Vector2Int(1, 0),
             new Vector2Int(0, -1), new Vector2Int(1, -1),
             new Vector2Int(0, 1), new Vector2Int(1, 1)
         };
 
+        private GameSystem _gameSystem;
+        private const int EndGameY = 10;
+        private bool _isEnd = false;
+
         private void Awake()
         {
             _ballDiameter = ballRadius * 2f;
             _rowHeight = _ballDiameter * 0.8660254f;
-            
-            _absoluteOrigin = transform.position; 
+
+            _absoluteOrigin = transform.position;
             _initialTrueCeiling = transform.position;
             _loweredCount = 0;
             _timer = 0;
@@ -64,6 +73,7 @@ namespace _02._Scripts.Environment
 
         private void Start()
         {
+            _gameSystem = Core.Systems.System.Instance.GetSystem<GameSystem>();
             _ballSystem = Core.Systems.System.Instance.GetSystem<BallSystem>();
 
             if (startLowGridRow > 0)
@@ -77,9 +87,12 @@ namespace _02._Scripts.Environment
 
         private void Update()
         {
-            if(!IsAutoLowering)
+            if (_isEnd)
                 return;
-            
+
+            if (!IsAutoLowering)
+                return;
+
             _timer += Time.deltaTime;
 
             if (_timer >= autoLowerInterval)
@@ -87,14 +100,25 @@ namespace _02._Scripts.Environment
                 _timer = 0f;
                 LowerGrid();
             }
+            
+            if (CheckEndRowBall())
+            {
+                _gameSystem.GameEnd(user);
+            }
         }
 
         public void LowerGrid(int low = 1, bool isRandomColor = true)
         {
+            if(_isEnd)
+                return;
+            
             if (low <= 0) 
                 return;
 
+            IsAutoLowering = false;
+            
             _loweredCount += low;
+            
             _absoluteOrigin += new Vector3(0f, -_rowHeight * low, 0f);
 
             foreach (var pair in _gridMatrix)
@@ -116,7 +140,25 @@ namespace _02._Scripts.Environment
                 FillRowWithNewBalls(newCeilingRow, checkMatch: false);
             }
             
+            IsAutoLowering = true;
             OnLowerGrid?.Invoke();
+        }
+
+        private bool CheckEndRowBall()
+        {
+            foreach (var pair in _gridMatrix)
+            {
+                Vector2Int gridPos = pair.Key;
+                Ball.CommonBall ball = pair.Value;
+                if (ball == null) 
+                    continue;
+                
+                if (gridPos.y == EndGameY)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool IsRowOdd(int row)
@@ -138,9 +180,11 @@ namespace _02._Scripts.Environment
             float relativeX = worldPos.x - _absoluteOrigin.x;
             float relativeY = _absoluteOrigin.y - worldPos.y;
 
+            // 행(Row) 계산 시, 아래로 내려갈수록 y값이 커짐
             int row = Mathf.RoundToInt(relativeY / _rowHeight);
 
             float xOffset = IsRowOdd(row) ? ballRadius : 0f;
+            // xOffset을 고려하여 열(Col) 계산
             int col = Mathf.RoundToInt((relativeX - xOffset) / _ballDiameter);
 
             return new Vector2Int(col, row);
@@ -151,22 +195,18 @@ namespace _02._Scripts.Environment
             if (ball == null) return;
 
             Vector2Int gridPos = WorldToGrid(ball.transform.position);
+            // 좌표 보정: 그리드 영역 강제 클램핑
+            gridPos.x = Mathf.Clamp(gridPos.x, 0, IsRowOdd(gridPos.y) ? maxCols - 1 : maxCols);
+            gridPos.y = Mathf.Max(gridPos.y, -_loweredCount); 
 
-            int currentLineMaxCols = IsRowOdd(gridPos.y) ? maxCols - 1 : maxCols;
-            gridPos.x = Mathf.Clamp(gridPos.x, 0, currentLineMaxCols - 1);
+            while (_gridMatrix.ContainsKey(gridPos)) gridPos.y += 1;
 
-            if (!_snappedBalls.Contains(ball)) _snappedBalls.Add(ball);
             _gridMatrix[gridPos] = ball;
-            
-            ball.transform.SetParent(null); 
             ball.transform.position = GridToWorld(gridPos);
-
-            if (checkMatch)
-            {
-                CheckAndPopMatch(gridPos);
-            }
+    
+            if (checkMatch) CheckAndPopMatch(gridPos);
         }
-        
+
         private void FillRowWithNewBalls(int targetRow, bool checkMatch = false)
         {
             if (_ballSystem == null) return;
@@ -320,6 +360,32 @@ namespace _02._Scripts.Environment
         {
             return row <= -_loweredCount;
         }
+        
+        public float[] GetGridObservations(int maxRows = 12)
+        {
+            List<float> observations = new List<float>();
+
+            for (int r = 0; r < maxRows; r++)
+            {
+                for (int c = 0; c < maxCols + 1; c++)
+                {
+                    Vector2Int pos = new Vector2Int(c, r);
+            
+                    // _gridMatrix에 해당 위치의 공이 있는지 확인
+                    if (_gridMatrix.TryGetValue(pos, out var ball) && ball != null)
+                    {
+                        // 색상 값을 1~5로 변환하여 추가 (0은 비어있음으로 사용)
+                        observations.Add((float)ball.Color + 1f); 
+                    }
+                    else
+                    {
+                        // 빈 칸은 0
+                        observations.Add(0f);
+                    }
+                }
+            }
+            return observations.ToArray();
+        }
 
         private IEnumerator DestroyDroppedBallAfterTime(Ball.CommonBall ball, float delay)
         {
@@ -348,33 +414,6 @@ namespace _02._Scripts.Environment
                 }
             }
             if (targetKey != Vector2Int.down) _gridMatrix.Remove(targetKey);
-        }
-        
-        public void IncreaseDifficulty()
-        {
-            autoLowerInterval = Mathf.Max(5f, autoLowerInterval - 0.01f);
-        }
-        
-        public float[] GetGridObservations(int maxRows = 12)
-        {
-            List<float> observations = new List<float>();
-
-            for (int r = 0; r < maxRows; r++)
-            {
-                for (int c = 0; c < maxCols + 1; c++)
-                {
-                    Vector2Int pos = new Vector2Int(c, r);
-                    if (_gridMatrix.TryGetValue(pos, out var ball) && ball != null)
-                    {
-                        observations.Add((float)ball.Color + 1f); 
-                    }
-                    else
-                    {
-                        observations.Add(0f);
-                    }
-                }
-            }
-            return observations.ToArray();
         }
 
         public void OnDestroy()
@@ -416,6 +455,32 @@ namespace _02._Scripts.Environment
                     Gizmos.DrawSphere(worldPos, ballRadius * 0.1f);
                 }
             }
+        }
+
+        public void StopAll()
+        {
+            _isEnd = true;
+        }
+        
+        public void ResetGrid()
+        {
+            foreach (var ball in _gridMatrix.Values) if (ball != null) ball.DestroyBall();
+            _gridMatrix.Clear();
+            _snappedBalls.Clear();
+            _loweredCount = 0;
+            _absoluteOrigin = _initialTrueCeiling;
+            IsAutoLowering = true;
+        }
+
+        public float GetLowestRowNormalized()
+        {
+            int lowest = 0;
+            foreach (var pos in _gridMatrix.Keys)
+            {
+                if (pos.y > lowest) lowest = pos.y;
+            }
+            // 최대 14행 기준으로 정규화
+            return Mathf.Clamp01((float)lowest / 14f);
         }
     }
 }

@@ -11,9 +11,9 @@ GameObject:
   - component: {fileID: 8219962160110315644}
   - component: {fileID: 1293451023386403954}
   - component: {fileID: 2618828887805065921}
-  - component: {fileID: 1929968008568280306}
   - component: {fileID: 3589170259025284959}
   - component: {fileID: 323654919592291277}
+  - component: {fileID: 1297205248017493007}
   m_Layer: 6
   m_Name: Ball
   m_TagString: Ball
@@ -86,27 +86,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!135 &1929968008568280306
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6699159577403905600}
-  m_Material: {fileID: 13400000, guid: 41b1973b2399aa6488e80d4472538e55, type: 2}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &3589170259025284959
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -122,6 +101,7 @@ MonoBehaviour:
   launchSpeed: 15
   maxReflectCount: 3
   ballRadius: 0.3
+  destroyTimeByFalling: 1
 --- !u!54 &323654919592291277
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -149,3 +129,24 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 120
   m_CollisionDetection: 0
+--- !u!135 &1297205248017493007
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6699159577403905600}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
